@@ -1,100 +1,181 @@
-# resume_builder
+# CV Generation Agent
 
-[![Powered by Kedro](https://img.shields.io/badge/powered_by-kedro-ffc900?logo=kedro)](https://kedro.org)
+An agentic AI pipeline that takes raw CV text and generates a professionally formatted Word document and PDF. Built with LangGraph, FastAPI, Streamlit, and local LLMs via Ollama or Groq.
 
-## Overview
+## What it does
 
-This is your new Kedro project with PySpark setup, which was generated using `kedro 1.5.0`.
+Paste your CV text (generated from Claude or any source) and the pipeline:
 
-Take a look at the [Kedro documentation](https://docs.kedro.org) to get started.
+1. **Jason** extracts all CV content into structured JSON
+2. **Post Process** cleans formatting, injects static links, normalises fields
+3. **Valley** validates the extracted JSON against the original text
+4. **Fixer** surgically fixes formatting issues (em dashes, date separators)
+5. **Resolver** surgically fixes content issues (missing bullets, wrong order)
+6. **Bob** builds a clean, ATS-friendly Word document
 
-## Rules and guidelines
+Download as `.docx` or `.pdf`. Also includes a standalone LaTeX to PDF compiler.
 
-In order to get the best out of the template:
+## Stack
 
-* Don't remove any lines from the `.gitignore` file we provide
-* Make sure your results can be reproduced by following a [data engineering convention](https://docs.kedro.org/en/stable/faq/faq.html#what-is-data-engineering-convention)
-* Don't commit data to your repository
-* Don't commit any credentials or your local configuration to your repository. Keep all your credentials and local configuration in `conf/local/`
+- **LangGraph** - agentic pipeline orchestration
+- **FastAPI** - backend API
+- **Streamlit** - frontend UI
+- **Ollama** - local LLM inference (default: qwen3:latest)
+- **Groq** - cloud LLM inference (llama-3.1-8b-instant + llama-3.3-70b-versatile)
+- **python-docx** - Word document generation
+- **LibreOffice** - Word to PDF conversion
+- **pdflatex** - LaTeX to PDF compilation
 
-## How to install dependencies
-
-Declare any dependencies in `requirements.txt` for `pip` installation.
-
-To install them, run:
-
-```
-pip install -r requirements.txt
-```
-
-## How to run your Kedro pipeline
-
-You can run your Kedro project with:
+## Project Structure
 
 ```
-kedro run
+resume-builder/
+├── backend/
+│   ├── main.py              # FastAPI + LangGraph graph wiring
+│   ├── config.py            # Model config, environment variables
+│   ├── tools/
+│   │   ├── jason.py         # CV extraction agent
+│   │   ├── post_process.py  # Cleaning and normalisation
+│   │   ├── valley.py        # Validation agent
+│   │   ├── fixer.py         # Formatting fixer agent
+│   │   ├── resolver.py      # Content fixer agent
+│   │   └── bob.py           # Word document builder
+│   └── utils/
+│       ├── template.py      # python-docx Word template
+│       ├── schema.py        # JSON extraction schema
+│       └── links.py         # Static links (LinkedIn, GitHub, etc.)
+├── frontend/
+│   └── app.py               # Streamlit UI
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+└── run.sh                   # Local dev startup script
 ```
 
-## How to test your Kedro project
-
-Have a look at the files `tests/test_run.py` and `tests/pipelines/data_science/test_pipeline.py` for instructions on how to write your tests. Run the tests as follows:
+## Agent Flow
 
 ```
-pytest
+CV Text Input
+    │
+    ▼
+Jason (extraction)
+    │
+    ▼
+Post Process (cleaning)
+    │
+    ▼
+Valley (validation)
+    │
+    ├── clean ──────────────────── Bob (build doc) ── Output
+    │
+    ├── formatting issues ──────── Fixer ── Valley
+    │
+    └── content issues ─────────── Resolver ── Valley
 ```
 
-You can configure the coverage threshold in your project's `pyproject.toml` file under the `[tool.coverage.report]` section.
+## Setup
 
-## Project dependencies
+### Local (Ollama)
 
-To see and update the dependency requirements for your project use `requirements.txt`. Install the project requirements with `pip install -r requirements.txt`.
+**1. Install Ollama**
 
-[Further information about project dependencies](https://docs.kedro.org/en/stable/kedro_project_setup/dependencies.html#project-specific-dependencies)
+Download from [ollama.com](https://ollama.com) then pull the model:
 
-## How to work with Kedro and notebooks
-
-> Note: Using `kedro jupyter` or `kedro ipython` to run your notebook provides these variables in scope: `catalog`, `context`, `pipelines` and `session`.
->
-> Jupyter, JupyterLab, and IPython are already included in the project requirements by default, so once you have run `pip install -r requirements.txt` you will not need to take any extra steps before you use them.
-
-### Jupyter
-To use Jupyter notebooks in your Kedro project, you need to install Jupyter:
-
-```
-pip install jupyter
+```bash
+ollama pull qwen3:latest
 ```
 
-After installing Jupyter, you can start a local notebook server:
+**2. Install dependencies**
 
-```
-kedro jupyter notebook
-```
-
-### JupyterLab
-To use JupyterLab, you need to install it:
-
-```
-pip install jupyterlab
+```bash
+git clone https://github.com/Shourya0902/resume-builder.git
+cd resume-builder
+uv venv
+source .venv/bin/activate
+uv add fastapi uvicorn streamlit langgraph langchain-core python-docx groq ollama requests pydantic python-dotenv
 ```
 
-You can also start JupyterLab:
+**3. Install LibreOffice and pdflatex (for PDF export)**
 
-```
-kedro jupyter lab
-```
-
-### IPython
-And if you want to run an IPython session:
-
-```
-kedro ipython
+```bash
+brew install --cask libreoffice
+brew install --cask basictex
+sudo tlmgr install titlesec enumitem geometry
 ```
 
-### How to ignore notebook output cells in `git`
-To automatically strip out all output cell contents before committing to `git`, you can use tools like [`nbstripout`](https://github.com/kynan/nbstripout). For example, you can add a hook in `.git/config` with `nbstripout --install`. This will run `nbstripout` before anything is committed to `git`.
+**4. Configure environment**
 
-> *Note:* Your output cells will be retained locally.
+Create a `.env` file in the project root:
 
-## Package your Kedro project
+```bash
+USE_GROQ=false
+OLLAMA_HOST=http://localhost:11434
+EXTRACTION_MODEL=qwen3:latest
+VALIDATION_MODEL=qwen3:latest
+OUTPUT_DIR=outputs
+API_URL=http://localhost:8000
+```
 
-[Further information about building project documentation and packaging your project](https://docs.kedro.org/en/stable/tutorial/package_a_project.html)
+**5. Run**
+
+```bash
+chmod +x run.sh
+./run.sh
+```
+
+Open `http://localhost:8501` in your browser.
+
+### Cloud (Groq)
+
+Get a free API key from [console.groq.com](https://console.groq.com/keys) then update `.env`:
+
+```bash
+USE_GROQ=true
+GROQ_API_KEY=your_key_here
+OUTPUT_DIR=outputs
+API_URL=http://localhost:8000
+```
+
+### Docker
+
+```bash
+docker compose up --build
+```
+
+Open `http://localhost:8501`.
+
+## Usage
+
+**Tab 1: CV Generator**
+1. Paste your CV text
+2. Click Generate Word or Generate PDF
+3. Download your formatted CV
+
+**Tab 2: LaTeX to PDF**
+1. Paste your LaTeX CV code
+2. Click Compile to PDF
+3. Download the PDF
+
+## Switching between Ollama and Groq
+
+In `.env` set:
+
+```bash
+USE_GROQ=false   # use local Ollama
+USE_GROQ=true    # use Groq cloud API
+```
+
+Restart the server after changing.
+
+## Roadmap
+
+- [ ] Job description fetching via Indeed API
+- [ ] CV tailoring to specific job descriptions
+- [ ] Multiple CV template styles
+- [ ] User profile form for dynamic static links
+- [ ] Adzuna job search integration
+- [ ] Full agentic job application pipeline
+
+## Author
+
+Shourya Marwaha - [LinkedIn](https://www.linkedin.com/in/shouryamarwaha/) | [GitHub](https://github.com/Shourya0902) | [Portfolio](https://shouryam-portfolio.framer.website/)
