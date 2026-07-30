@@ -1,0 +1,2 @@
+[console_scripts]
+resume-builder = resume_builder.__main__:main
