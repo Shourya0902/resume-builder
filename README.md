@@ -176,6 +176,18 @@ Restart the server after changing.
 - [ ] Adzuna job search integration
 - [ ] Full agentic job application pipeline
 
+## Customisation
+
+This pipeline is built around a specific CV format and template. The prompts inside each agent are tuned to that structure.
+
+To use it for your own documents:
+
+Update the extraction prompt in jason.py to match your CV structure and sections
+Update the document template in bob.py to match your preferred formatting and layout
+Update the JSON schema in utils/schema.py to reflect your custom fields
+
+Everything else in the pipeline stays the same. The validation loop and conditional routing work regardless of the format you choose.
+
 ## Author
 
 Shourya Marwaha - [LinkedIn](https://www.linkedin.com/in/shouryamarwaha/) | [GitHub](https://github.com/Shourya0902) | [Portfolio](https://shouryam-portfolio.framer.website/)
